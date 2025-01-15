@@ -29,7 +29,17 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">Lista de Vehículos</div>
-                @if (FilteredProducts.Any())
+                @if (IsLoading)
+
+                {
+                    <div class="card-body text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                    </div>
+                }
+
+                else if (FilteredProducts.Any())
 
                 {
                     <div class="card-body">
@@ -78,7 +88,7 @@
 
                 {
                     <div class="card-body">
-                        <p class="text-center text-muted">Buscar Vehículo</p>
+                        <p class="text-center text-muted">No se encontraron vehículos.</p>
                     </div>
                 }
             </div>
@@ -130,7 +140,7 @@
 @code {
     private List<Product> AllProducts { get; set; } = new();
 
-    private List<Product> FilteredProducts { get; set; } = new(); // Inicializa vacía
+    private List<Product> FilteredProducts { get; set; } = new();
 
     private string Filtro { get; set; } = string.Empty;
 
@@ -141,6 +151,8 @@
     private string MensajeAlerta { get; set; } = "";
 
     private string ClaseAlerta { get; set; } = "";
+
+    private bool IsLoading { get; set; } = false;
 
 
 
@@ -158,13 +170,25 @@
 
     {
 
-        var products = await ProductService.GetAllProductAsync();
+        IsLoading = true;
 
-        AllProducts.Clear();
+        try
 
-        if (products is null) return;
+        {
 
-        AllProducts.AddRange(products);
+            var products = await ProductService.GetAllProductAsync();
+
+            AllProducts = products ?? new List<Product>();
+
+        }
+
+        finally
+
+        {
+
+            IsLoading = false;
+
+        }
 
     }
 
@@ -174,41 +198,25 @@
 
     {
 
-        if (string.IsNullOrWhiteSpace(Filtro))
+        FilteredProducts = string.IsNullOrWhiteSpace(Filtro)
 
-        {
+            ? new List<Product>()
 
-            FilteredProducts = new List<Product>();
+            : AllProducts.Where(p => p.Marca.Contains(Filtro, StringComparison.OrdinalIgnoreCase) ||
 
-        }
-
-        else
-
-        {
-
-            FilteredProducts = AllProducts
-
-                .Where(p => p.Marca.Contains(Filtro, StringComparison.OrdinalIgnoreCase) || p.TipoVehiculo.Contains(Filtro, StringComparison.OrdinalIgnoreCase))
-
-                .ToList();
-
-        }
-
-        StateHasChanged();
+                                     p.TipoVehiculo.Contains(Filtro, StringComparison.OrdinalIgnoreCase)).ToList();
 
     }
 
 
 
-    private async Task Limpiar()
+    private void Limpiar()
 
     {
 
         Filtro = string.Empty;
 
-        FilteredProducts.Clear(); // Limpia la lista filtrada
-
-        StateHasChanged();
+        FilteredProducts.Clear();
 
     }
 
@@ -250,25 +258,20 @@
 
                 FechaRegistro = DateTime.Now,
 
-                Total = VehiculoSeleccionado.Precio
+                Total = VehiculoSeleccionado.Precio,
+
+                DetalleVenta = new List<DetalleVenta>
+            {
+                new DetalleVenta
+                {
+                    IdProducto = VehiculoSeleccionado.Id,
+                    Cantidad = 1,
+                    Precio = VehiculoSeleccionado.Precio,
+                    Total = VehiculoSeleccionado.Precio
+                }
+            }
 
             };
-
-
-
-        nuevaVenta.DetalleVenta.Add(new DetalleVenta
-
-            {
-
-                IdProducto = VehiculoSeleccionado.Id,
-
-                Cantidad = 1,
-
-                Precio = VehiculoSeleccionado.Precio,
-
-                Total = VehiculoSeleccionado.Precio
-
-            });
 
 
 
@@ -276,17 +279,9 @@
 
         {
 
-            // Registrar la venta y generar el número de documento
-
             var ventaRegistrada = await VentaRepositorio.Registrar(nuevaVenta);
 
-
-
-            // Mostrar mensaje con el número de documento generado
-
             MostrarAlerta($"Venta registrada exitosamente. Número de documento: {ventaRegistrada.NumeroDocumento}", "alert-success");
-
-
 
             LimpiarFormulario();
 
@@ -324,7 +319,7 @@
 
         FilteredProducts.Clear();
 
-        Filtro = "";
+        Filtro = string.Empty;
 
     }
 }
