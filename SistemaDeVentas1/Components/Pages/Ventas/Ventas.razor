@@ -1,0 +1,330 @@
+﻿@page "/registrar-venta"
+@using SistemaDeVentas1.Interfaces
+@using SistemaDeVentas1.Models
+@inject IVentaRepositorio VentaRepositorio
+@inject IProductService ProductService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<h3 class="text-center">Registrar Venta</h3>
+
+<div class="container mt-4">
+    <!-- Barra de filtrado centrada -->
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex">
+                        <input type="text" class="form-control me-2" @bind="Filtro" placeholder="Filtrar por Marca o Tipo de Vehículo" />
+                        <button class="btn btn-primary rounded me-2" @onclick="Filtrar">Filtrar</button>
+                        <button class="btn btn-danger rounded" @onclick="Limpiar">Limpiar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de vehículos -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">Lista de Vehículos</div>
+                @if (FilteredProducts.Any())
+
+                {
+                    <div class="card-body">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Id</th>
+                                    <th>TipoVehículo</th>
+                                    <th>Marca</th>
+                                    <th>Modelo</th>
+                                    <th>Año</th>
+                                    <th>Color</th>
+                                    <th>Kilometraje</th>
+                                    <th>Precio</th>
+                                    <th>FechaIngreso</th>
+                                    <th>Estado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var product in FilteredProducts)
+
+                                {
+                                    <tr>
+                                        <td>@product.Id</td>
+                                        <td>@product.TipoVehiculo</td>
+                                        <td>@product.Marca</td>
+                                        <td>@product.Modelo</td>
+                                        <td>@product.Anio</td>
+                                        <td>@product.Color</td>
+                                        <td>@product.Kilometraje</td>
+                                        <td>@product.Precio</td>
+                                        <td>@product.FechaIngreso</td>
+                                        <td>@product.Estado</td>
+                                        <td>
+                                            <button class="btn btn-success btn-sm" @onclick="() => SeleccionarVehiculo(product)">Seleccionar</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                else
+
+                {
+                    <div class="card-body">
+                        <p class="text-center text-muted">Buscar Vehículo</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Vehículo Seleccionado -->
+    @if (VehiculoSeleccionado != null)
+
+    {
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Vehículo Seleccionado</h5>
+                        <p><strong>Marca:</strong> @VehiculoSeleccionado.Marca</p>
+                        <p><strong>Modelo:</strong> @VehiculoSeleccionado.Modelo</p>
+                        <p><strong>Precio:</strong> @VehiculoSeleccionado.Precio $</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Método de Pago -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <label for="paymentMethod" class="form-label">Método de Pago</label>
+                <select id="paymentMethod" class="form-select" @bind="MetodoPago">
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
+                </select>
+            </div>
+            <div class="col-md-6 align-self-end">
+                <button class="btn btn-success w-100" @onclick="RegistrarVenta">Registrar Venta</button>
+            </div>
+        </div>
+    }
+
+    <!-- Alerta -->
+    @if (!string.IsNullOrEmpty(MensajeAlerta))
+
+    {
+        <div class="alert @ClaseAlerta text-center" role="alert">
+            @MensajeAlerta
+        </div>
+    }
+</div>
+
+@code {
+    private List<Product> AllProducts { get; set; } = new();
+
+    private List<Product> FilteredProducts { get; set; } = new(); // Inicializa vacía
+
+    private string Filtro { get; set; } = string.Empty;
+
+    private Product? VehiculoSeleccionado { get; set; }
+
+    private string MetodoPago { get; set; } = "Efectivo";
+
+    private string MensajeAlerta { get; set; } = "";
+
+    private string ClaseAlerta { get; set; } = "";
+
+
+
+    protected override async Task OnInitializedAsync()
+
+    {
+
+        await LoadAllProducts();
+
+    }
+
+
+
+    private async Task LoadAllProducts()
+
+    {
+
+        var products = await ProductService.GetAllProductAsync();
+
+        AllProducts.Clear();
+
+        if (products is null) return;
+
+        AllProducts.AddRange(products);
+
+    }
+
+
+
+    private void Filtrar()
+
+    {
+
+        if (string.IsNullOrWhiteSpace(Filtro))
+
+        {
+
+            FilteredProducts = new List<Product>();
+
+        }
+
+        else
+
+        {
+
+            FilteredProducts = AllProducts
+
+                .Where(p => p.Marca.Contains(Filtro, StringComparison.OrdinalIgnoreCase) || p.TipoVehiculo.Contains(Filtro, StringComparison.OrdinalIgnoreCase))
+
+                .ToList();
+
+        }
+
+        StateHasChanged();
+
+    }
+
+
+
+    private async Task Limpiar()
+
+    {
+
+        Filtro = string.Empty;
+
+        FilteredProducts.Clear(); // Limpia la lista filtrada
+
+        StateHasChanged();
+
+    }
+
+
+
+    private void SeleccionarVehiculo(Product vehiculo)
+
+    {
+
+        VehiculoSeleccionado = vehiculo;
+
+        MostrarAlerta($"Vehículo seleccionado: {vehiculo.Marca} {vehiculo.Modelo}", "alert-success");
+
+    }
+
+
+
+    private async Task RegistrarVenta()
+
+    {
+
+        if (VehiculoSeleccionado == null)
+
+        {
+
+            MostrarAlerta("Seleccione un vehículo antes de registrar la venta.", "alert-warning");
+
+            return;
+
+        }
+
+
+
+        var nuevaVenta = new Venta
+
+            {
+
+                TipoPago = MetodoPago,
+
+                FechaRegistro = DateTime.Now,
+
+                Total = VehiculoSeleccionado.Precio
+
+            };
+
+
+
+        nuevaVenta.DetalleVenta.Add(new DetalleVenta
+
+            {
+
+                IdProducto = VehiculoSeleccionado.Id,
+
+                Cantidad = 1,
+
+                Precio = VehiculoSeleccionado.Precio,
+
+                Total = VehiculoSeleccionado.Precio
+
+            });
+
+
+
+        try
+
+        {
+
+            // Registrar la venta y generar el número de documento
+
+            var ventaRegistrada = await VentaRepositorio.Registrar(nuevaVenta);
+
+
+
+            // Mostrar mensaje con el número de documento generado
+
+            MostrarAlerta($"Venta registrada exitosamente. Número de documento: {ventaRegistrada.NumeroDocumento}", "alert-success");
+
+
+
+            LimpiarFormulario();
+
+        }
+
+        catch (Exception ex)
+
+        {
+
+            MostrarAlerta($"Error al registrar la venta: {ex.Message}", "alert-danger");
+
+        }
+
+    }
+
+
+
+    private void MostrarAlerta(string mensaje, string clase)
+
+    {
+
+        MensajeAlerta = mensaje;
+
+        ClaseAlerta = clase;
+
+    }
+
+
+
+    private void LimpiarFormulario()
+
+    {
+
+        VehiculoSeleccionado = null;
+
+        FilteredProducts.Clear();
+
+        Filtro = "";
+
+    }
+}

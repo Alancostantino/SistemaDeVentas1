@@ -1,0 +1,157 @@
+﻿@page "/vehiculos-list"
+@using SistemaDeVentas1.Interfaces
+@using SistemaDeVentas1.Models
+@inject IProductService ProductService
+@inject NavigationManager navigation;
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-3">
+
+    <div class="row mb-3">
+        <div class="col-12 text-center">
+            <a class="btn btn-success" href="/add-vehiculos">Agregar Nuevo Vehículo</a>
+        </div>
+    </div>
+
+    <!-- Barra de filtrado centrada -->
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex">
+                        <input type="text" class="form-control me-2" @bind="MarcaFiltro" placeholder="Filtrar por Marca" />
+                        <button class="btn btn-primary rounded me-2" @onclick="Filtrar">Filtrar</button>
+                        <button class="btn btn-danger rounded" @onclick="Limpiar">Limpiar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de vehículos -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">Lista de Vehículos</div>
+                @if (FilteredProducts.Any())
+                {
+                    <div class="card-body">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Id</th>
+                                    <th>TipoVehículo</th>
+                                    <th>Marca</th>
+                                    <th>Modelo</th>
+                                    <th>Año</th>
+                                    <th>Color</th>
+                                    <th>Kilometraje</th>
+                                    <th>Precio</th>
+                                    <th>FechaIngreso</th>
+                                    <th>Estado</th>
+
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var product in FilteredProducts)
+                                {
+                                    <tr>
+                                        <td>@product.Id</td>
+                                        <td>@product.TipoVehiculo</td>
+                                        <td>@product.Marca</td>
+                                        <td>@product.Modelo</td>
+                                        <td>@product.Anio</td>
+                                        <td>@product.Color</td>
+                                        <td>@product.Kilometraje</td>
+                                        <td>@product.Precio</td>
+                                        <td>@product.FechaIngreso</td>
+                                        <td>@product.Estado</td>
+                                        <td>
+                                            <div class="d-flex gap-2">
+                                                <a class="btn btn-success btn-sm flex-fill" href="/editar/vehiculos/@product.Id">Editar</a>
+                                                <a class="btn btn-danger btn-sm flex-fill" href="/eliminar/vehiculos/@product.Id">Eliminar</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info m-3">No existen vehículos que coincidan con la marca ingresada.</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Product> AllProducts { get; set; } = new();
+    private List<Product> FilteredProducts { get; set; } = new();
+    private string MarcaFiltro = string.Empty;
+
+    // Método del ciclo de vida del componente, ejecutado al inicializar el componente.
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllProducts();
+    }
+
+    // Método que carga todos los productos usando el servicio.
+    private async Task LoadAllProducts()
+    {
+        // Llama al servicio para obtener los productos de forma asíncrona.
+        var products = await ProductService.GetAllProductAsync();
+
+        // Limpia la lista actual para evitar duplicados.
+        AllProducts.Clear();
+
+        // Si no se obtienen productos, finaliza el método.
+        if (products is null) return;
+
+        // Agrega cada producto a la lista local.
+        foreach (var product in products)
+        {
+            AllProducts.Add(product);
+        }
+
+        // Inicializa la lista filtrada con todos los productos
+        FilteredProducts = new List<Product>(AllProducts);
+    }
+
+    // Método para aplicar el filtro
+    private void Filtrar()
+    {
+        // Verifica si el filtro no está vacío
+        if (string.IsNullOrWhiteSpace(MarcaFiltro))
+        {
+            // Si el filtro está vacío, muestra todos los productos
+            FilteredProducts = new List<Product>(AllProducts);
+        }
+        else
+        {
+            // Filtra los productos por marca
+            FilteredProducts = AllProducts
+                .Where(p => p.Marca.Contains(MarcaFiltro, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        // Fuerza la actualización del componente
+        StateHasChanged();
+    }
+
+    // Método para limpiar el filtro
+    private void Limpiar()
+    {
+        MarcaFiltro = string.Empty; // Restablece el filtro
+        FilteredProducts = new List<Product>(AllProducts); // Muestra todos los productos
+        StateHasChanged(); // Fuerza la actualización
+    }
+
+    private async Task DeleteProduct(int id)
+    {
+        var result = await ProductService.DeleteProductAsync(id);
+        await LoadAllProducts(); // Recarga los productos después de la eliminación
+    }
+}

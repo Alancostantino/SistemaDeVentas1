@@ -1,0 +1,102 @@
+﻿@page "/eliminar/vehiculos/{id:int}"
+@using SistemaDeVentas1.Interfaces
+@using SistemaDeVentas1.Models
+
+@inject IProductService ProductService
+@inject NavigationManager navigation;
+@inject IJSRuntime JsRuntime
+
+<h3>Eliminar vehiculo</h3>
+
+<hr />
+.<div class="row">
+    <div class="col-md-12">
+        <table class="table">
+            <tr>
+                <th>Tipo de Vehiculo</th>
+                <td>@productobj.TipoVehiculo</td>
+            </tr>
+            <tr>
+                <th>Marca</th>
+                <td>@productobj.Marca</td>
+            </tr>
+            <tr>
+                <th>Modelo</th>
+                <td>@productobj.Modelo</td>
+            </tr>
+            <tr>
+                <th>Anio</th>
+                <td>@productobj.Anio</td>
+            </tr>
+            <tr>
+                <th>Color</th>
+                <td>@productobj.Color</td>
+            </tr>
+            <tr>
+                <th>Kilometraje</th>
+                <td>@productobj.Kilometraje</td>
+            </tr>
+            <tr>
+                <th>Precio</th>
+                <td>@productobj.Precio</td>
+            </tr>
+            <tr>
+                <th>Fecha de ingreso</th>
+                <td>@productobj.FechaIngreso</td>
+            </tr>
+            <tr>
+                <th>Estado</th>
+                <td>@productobj.Estado</td>
+            </tr>
+        </table>
+    </div>
+    <div class="form-group">
+        <button type="submit" class="btn btn-danger" @onclick="DeleteProduct">Eliminar Vehiculo</button>
+        <button type="button" class="btn btn-primary" @onclick="Cancel">Cancel</button>
+    </div>
+</div>
+@code {
+
+    public Product productobj { get; set; } = new()
+        {
+            TipoVehiculo = string.Empty,
+            Marca = string.Empty,
+            Modelo = string.Empty,
+            Anio = 0,
+            Color = string.Empty,
+            Kilometraje = 0,
+            Precio = 0,
+            FechaIngreso = DateTime.Now,
+            Estado = string.Empty
+        };
+
+
+    [Parameter]
+    public int id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+
+    {
+        // Carga los productos al inicializar el componente.
+        await LoadProducts();
+    }
+
+
+    private async Task LoadProducts()
+
+    {
+        productobj = await ProductService.GetProductByIdAsync(id);
+    }
+
+
+    protected async Task DeleteProduct()
+    {
+        var result = await ProductService.DeleteProductAsync(id);
+        navigation.NavigateTo("/vehiculos-list");
+    }
+
+    public void Cancel()
+    {
+        navigation.NavigateTo("/vehiculos-list");
+    }
+}

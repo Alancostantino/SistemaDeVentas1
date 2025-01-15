@@ -1,10 +1,26 @@
 using SistemaDeVentas1.Components;
+using SistemaDeVentas1.Interfaces;
+using SistemaDeVentas1.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddHttpClient();
+
+builder.Services.AddHttpClient<IProductService, ProductService>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7299/"); // Dirección de tu API REST
+});
+
+builder.Services.AddHttpClient<IVentaRepositorio, VentaRepositorio>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7299/"); // Dirección de tu API REST
+});
+
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IVentaRepositorio, VentaRepositorio>();
 
 var app = builder.Build();
 

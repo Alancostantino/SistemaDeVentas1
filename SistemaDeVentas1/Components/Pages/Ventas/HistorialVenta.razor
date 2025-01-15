@@ -1,0 +1,155 @@
+﻿@page "/historial-venta"
+@using SistemaDeVentas1.Interfaces
+@using SistemaDeVentas1.Models
+@inject IVentaRepositorio VentaRepositorio;
+@inject IJSRuntime JsRuntime
+
+<h3 class="text-center">Historial de Ventas</h3>
+
+<div class="container mt-4">
+    <!-- Filtros -->
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label for="buscarPor" class="form-label">Buscar por</label>
+            <select id="buscarPor" class="form-select" @bind="BuscarPor">
+                <option value="fecha">Fechas</option>
+                <option value="NumeroDocumento">Número de Documento</option>
+            </select>
+        </div>
+
+        @if (BuscarPor == "fecha")
+
+        {
+            <div class="col-md-3">
+                <label for="fechaInicio" class="form-label">Fecha Inicio</label>
+                <input type="date" id="fechaInicio" class="form-control" @bind="FechaInicio" />
+            </div>
+            <div class="col-md-3">
+                <label for="fechaFin" class="form-label">Fecha Fin</label>
+                <input type="date" id="fechaFin" class="form-control" @bind="FechaFin" />
+            </div>
+        }
+
+        else
+
+        {
+            <div class="col-md-6">
+                <label for="numeroDocumento" class="form-label">Número de Documento</label>
+                <input type="text" id="numeroDocumento" class="form-control" @bind="NumeroDocumento" />
+            </div>
+        }
+
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" @onclick="Buscar">Buscar</button>
+        </div>
+    </div>
+
+    <!-- Cargando -->
+    @if (Cargando)
+
+    {
+        <div class="text-center">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Cargando...
+        </div>
+    }
+
+    <!-- Tabla de resultados -->
+    <div class="card">
+        <div class="card-header">Resultados</div>
+        <div class="card-body">
+            @if (VentasFiltradas.Any())
+            {
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha Registro</th>
+                            <th>Número Documento</th>
+                            <th>Tipo Pago</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var venta in VentasFiltradas)
+
+                        {
+                            <tr>
+                                <td>@venta.FechaRegistro?.ToString("dd/MM/yyyy")</td>
+                                <td>@venta.NumeroDocumento</td>
+                                <td>@venta.TipoPago</td>
+                                <td>@venta.Total</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <p class="text-center text-muted">No se encontraron resultados.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string BuscarPor { get; set; } = "fecha";
+
+    private DateTime? FechaInicio { get; set; }
+
+    private DateTime? FechaFin { get; set; }
+
+    private string NumeroDocumento { get; set; } = string.Empty;
+
+    private List<Venta> VentasFiltradas { get; set; } = new();
+
+    private bool Cargando { get; set; } = false;
+
+
+
+    private async Task Buscar()
+
+    {
+
+        // Validar que las fechas estén completas si se seleccionó "fecha"
+
+        if (BuscarPor == "fecha" && (!FechaInicio.HasValue || !FechaFin.HasValue))
+
+        {
+
+            return;
+
+        }
+
+
+
+        Cargando = true;
+
+
+
+        // Formateo las fechas para enviarlas al servicio en formato "dd/MM/yyyy"
+
+        string fechaInicioStr = FechaInicio.HasValue ? FechaInicio.Value.ToString("dd/MM/yyyy") : string.Empty;
+
+        string fechaFinStr = FechaFin.HasValue ? FechaFin.Value.ToString("dd/MM/yyyy") : string.Empty;
+
+
+
+        // Llamo al servicio para obtener las ventas filtradas
+
+        VentasFiltradas = await VentaRepositorio.Historial(
+
+            BuscarPor,
+
+            BuscarPor == "NumeroDocumento" ? NumeroDocumento : string.Empty,
+
+            BuscarPor == "fecha" ? fechaInicioStr : string.Empty,
+
+            BuscarPor == "fecha" ? fechaFinStr : string.Empty
+
+        );
+
+
+
+        Cargando = false;
+
+    }
+}
