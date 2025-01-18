@@ -1,5 +1,6 @@
 ﻿using SistemaDeVentas1.Interfaces;
 using SistemaDeVentas1.Models;
+using System.Globalization;
 using System.Text.Json;
 
 namespace SistemaDeVentas1.Services
@@ -13,9 +14,10 @@ namespace SistemaDeVentas1.Services
             _httpClient = httpClient;
         }
 
-        public async Task<Venta> Registrar(Venta entidad)
+        // Registrar una venta
+        public async Task<Venta> Registrar(Venta venta)
         {
-            var response = await _httpClient.PostAsJsonAsync("https://localhost:7299/api/venta/registrar", entidad);
+            var response = await _httpClient.PostAsJsonAsync("https://localhost:7299/api/venta/registrar", venta);
             if (response.IsSuccessStatusCode)
             {
                 return await response.Content.ReadFromJsonAsync<Venta>();
@@ -27,72 +29,28 @@ namespace SistemaDeVentas1.Services
             }
         }
 
-        public async Task<List<Venta>> Historial(string buscarPor, string numeroVenta, string fechaInicio, string fechaFin)
+        // Historial de ventas filtrado por número de venta o fecha
+        public async Task<List<Venta>> Historial(string numeroVenta, string fechaInicio, string fechaFin)
         {
-            var url = $"https://localhost:7299/api/venta/historial?buscarPor={Uri.EscapeDataString(buscarPor)}&fechaInicio={Uri.EscapeDataString(fechaInicio)}&fechaFin={Uri.EscapeDataString(fechaFin)}";
+            var queryParams = new List<string>();
+            if (!string.IsNullOrWhiteSpace(numeroVenta)) queryParams.Add($"numeroVenta={numeroVenta}");
+            if (!string.IsNullOrWhiteSpace(fechaInicio)) queryParams.Add($"fechaInicio={fechaInicio}");
+            if (!string.IsNullOrWhiteSpace(fechaFin)) queryParams.Add($"fechaFin={fechaFin}");
 
-            if (buscarPor == "NumeroDocumento" && !string.IsNullOrWhiteSpace(numeroVenta))
-            {
-                url += $"&numeroVenta={Uri.EscapeDataString(numeroVenta)}";
-            }
+            string queryString = string.Join("&", queryParams);
+            string url = $"https://localhost:7299/api/venta/historial?{queryString}";
 
-            try
-            {
-                var response = await _httpClient.GetAsync(url);
-                if (response.IsSuccessStatusCode)
-                {
-                    var ventas = await response.Content.ReadFromJsonAsync<List<Venta>>();
-                    if (ventas == null)
-                    {
-                        throw new Exception("La respuesta del servidor no contiene datos válidos.");
-                    }
-                    return ventas;
-                }
-                else
-                {
-                    var errorMessage = await response.Content.ReadAsStringAsync();
-                    throw new Exception($"Error al obtener el historial de ventas. Código de estado: {response.StatusCode}. Detalles: {errorMessage}");
-                }
-            }
-            catch (HttpRequestException ex)
-            {
-                throw new Exception("Error de red al intentar obtener el historial de ventas.", ex);
-            }
-            catch (JsonException ex)
-            {
-                throw new Exception("Error al deserializar la respuesta del servidor.", ex);
-            }
-        }
-
-        public async Task<List<DetalleVenta>> Reporte(string fechaInicio, string fechaFin)
-        {
-            var url = $"https://localhost:7299/api/venta/reporte?FechaInicio={Uri.EscapeDataString(fechaInicio)}&FechaFin={Uri.EscapeDataString(fechaFin)}";
             var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                string errorContent = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Error al obtener historial: {errorContent}");
+            }
 
-            if (response.IsSuccessStatusCode)
-            {
-                return await response.Content.ReadFromJsonAsync<List<DetalleVenta>>();
-            }
-            else
-            {
-                var errorMessage = await response.Content.ReadAsStringAsync();
-                throw new Exception($"Error al generar el reporte. Detalles: {errorMessage}");
-            }
+            return await response.Content.ReadFromJsonAsync<List<Venta>>();
         }
 
-        public async Task<DetalleVenta> RegistrarDetalle(DetalleVenta detalle)
-        {
-            var response = await _httpClient.PostAsJsonAsync("https://localhost:7299/api/venta/registrar-detalle", detalle);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return await response.Content.ReadFromJsonAsync<DetalleVenta>();
-            }
-            else
-            {
-                var errorMessage = await response.Content.ReadAsStringAsync();
-                throw new Exception($"Error al registrar el detalle de venta. Detalles: {errorMessage}");
-            }
-        }
+        // Obtener reporte de ventas
+       
     }
 }

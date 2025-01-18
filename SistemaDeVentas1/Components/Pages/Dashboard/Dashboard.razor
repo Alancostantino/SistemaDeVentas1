@@ -1,0 +1,197 @@
+﻿@page "/"
+@using SistemaDeVentas1.Interfaces
+@inject IVentaRepositorio VentaRepositorio
+@inject IProductService ProductService
+@inject IJSRuntime JS
+
+<h3>Dashboard</h3>
+
+<div class="container mt-4">
+    <div class="row">
+        <!-- Tarjeta: Total de Ingresos -->
+        <div class="col-md-4">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Total de Ingresos</h5>
+                    <p class="card-text display-6">@TotalIngresos.ToString("C")</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta: Vehículos Disponibles -->
+        <div class="col-md-4">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Vehículos Disponibles</h5>
+                    <p class="card-text display-6">@TotalVehiculosDisponibles</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta: Total de Ventas -->
+        <div class="col-md-4">
+            <div class="card text-white bg-info mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Total de Ventas</h5>
+                    <p class="card-text display-6">@TotalVentas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Ventas -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Ventas de la Última Semana</h5>
+                    <canvas id="ventasChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private decimal TotalIngresos;
+
+    private int TotalVehiculosDisponibles;
+
+    private int TotalVentas;
+
+    private List<string> VentasFechas = new();
+
+    private List<decimal> VentasMontos = new();
+
+    private string ErrorMessage = string.Empty;
+
+
+
+    protected override async Task OnInitializedAsync()
+
+    {
+
+        try
+
+        {
+
+            // Obtener todas las ventas
+
+            var ventas = await VentaRepositorio.Historial(string.Empty, null, null);
+
+            TotalIngresos = ventas.Sum(v => v.PrecioVenta);
+
+            TotalVentas = ventas.Count;
+
+
+
+            // Ventas de la última semana
+
+            var fechaInicio = DateTime.Now.AddDays(-7);
+
+            var ventasUltimaSemana = ventas
+
+                .Where(v => v.FechaRegistro >= fechaInicio)
+
+                .ToList();
+
+
+
+            VentasFechas = ventasUltimaSemana
+
+                .GroupBy(v => v.FechaRegistro?.ToString("yyyy-MM-dd"))
+
+                .Select(g => g.Key ?? "Desconocido")
+
+                .ToList();
+
+
+
+            VentasMontos = ventasUltimaSemana
+
+                .GroupBy(v => v.FechaRegistro?.ToString("yyyy-MM-dd"))
+
+                .Select(g => g.Sum(v => v.PrecioVenta))
+
+                .ToList();
+
+
+
+            // Obtener vehículos disponibles
+
+            var productos = await ProductService.GetAllProductAsync();
+
+            TotalVehiculosDisponibles = productos.Count(p => p.Estado == "Disponible");
+
+
+
+            // Renderizar el gráfico
+
+            await RenderChart();
+
+        }
+
+        catch (Exception ex)
+
+        {
+
+            ErrorMessage = $"Ocurrió un error al cargar los datos: {ex.Message}";
+
+        }
+
+    }
+
+
+
+    private async Task RenderChart()
+
+    {
+
+        if (VentasFechas.Count == 0 || VentasMontos.Count == 0)
+
+        {
+
+            ErrorMessage = "No hay datos disponibles para mostrar en el gráfico.";
+
+            return;
+
+        }
+
+
+
+        var labels = string.Join(",", VentasFechas.Select(f => $"'{f}'"));
+
+        var data = string.Join(",", VentasMontos);
+
+
+
+        var script = $@"
+        const ctx = document.getElementById('ventasChart').getContext('2d');
+        new Chart(ctx, {{
+            type: 'bar',
+            data: {{
+                labels: [{labels}],
+                datasets: [{{
+                    label: 'Ingresos por Día',
+                    data: [{data}],
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                scales: {{
+                    y: {{
+                        beginAtZero: true
+                    }}
+                }}
+            }}
+        }});";
+
+
+
+        await JS.InvokeVoidAsync("eval", script);
+
+    }
+}
